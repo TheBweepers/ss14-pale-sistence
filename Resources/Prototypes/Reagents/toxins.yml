@@ -452,6 +452,12 @@
         conditions:
         - !type:MetabolizerTypeCondition
           type: [Animal] # Applying damage to the mobs with lower metabolism capabilities
+        - !type:MetabolizerTypeCondition
+          type: [Slime]
+          inverted: true
+        damage:
+          types:
+            Poison: 1
         damage:
           types:
             Poison: 0.4
@@ -460,6 +466,9 @@
         conditions:
           - !type:MetabolizerTypeCondition
             type: [Animal]
+          - !type:MetabolizerTypeCondition
+           type: [Slime]
+           inverted: true
 
 - type: reagent
   id: TartaricAcid
@@ -618,6 +627,9 @@
           min: 1
         - !type:MetabolizerTypeCondition
           type: [Animal]
+        - !type:MetabolizerTypeCondition
+          type: [Slime]
+          inverted: true
         damage:
           types:
             Poison: 0.1
