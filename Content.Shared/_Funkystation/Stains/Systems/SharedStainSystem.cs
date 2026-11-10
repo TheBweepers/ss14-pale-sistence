@@ -5,6 +5,8 @@ using Content.Shared.Chemistry.EntitySystems;
 using Content.Shared.DoAfter;
 using Content.Shared.Fluids;
 using Content.Shared.Fluids.Components;
+using Content.Shared.Forensics.Components;
+using Content.Shared.Forensics.Systems;
 using Content.Shared.Hands.EntitySystems;
 using Content.Shared.Inventory;
 using Content.Shared.Item;
@@ -26,15 +28,15 @@ public enum StainVisuals : byte
 public abstract class SharedStainSystem : EntitySystem
 {
     [Dependency] private readonly SharedSolutionContainerSystem _solution = null!;
-    [Dependency] private readonly SharedHandsSystem _hands = null!;
     [Dependency] private readonly SharedItemSystem _item = null!;
     [Dependency] private readonly SharedAppearanceSystem _appearance = null!;
     [Dependency] private readonly SharedContainerSystem _container = null!;
-    [Dependency] private readonly ISharedPlayerManager _playerManager = null!;
     [Dependency] private readonly InventorySystem _inventory = null!;
     [Dependency] private readonly SharedDoAfterSystem _doAfter = null!;
     [Dependency] private readonly SharedPuddleSystem _puddle = null!;
     [Dependency] private readonly SharedPopupSystem _popup = null!;
+
+    [Dependency] private ForensicsSystem _forensics = null!; // Persistence
 
     public override void Initialize()
     {
@@ -44,19 +46,19 @@ public abstract class SharedStainSystem : EntitySystem
         SubscribeLocalEvent<StainableComponent, InventoryRelayedEvent<SpilledOnEvent>>(OnSpilledOn);
         SubscribeLocalEvent<StainableComponent, GetVerbsEvent<Verb>>(OnGetVerbs);
         SubscribeLocalEvent<StainableComponent, WringStainDoAfterEvent>(OnWring);
-        SubscribeLocalEvent<StainableComponent, SolutionContainerChangedEvent>(OnSolutionChanged);
+        SubscribeLocalEvent<StainableComponent, SolutionChangedEvent>(OnSolutionChanged);
     }
 
-    private void OnSolutionChanged(Entity<StainableComponent> ent, ref SolutionContainerChangedEvent args)
+    private void OnSolutionChanged(Entity<StainableComponent> ent, ref SolutionChangedEvent args)
     {
-        if (args.SolutionId == ent.Comp.SolutionName)
+        if (args.Solution.Comp.Id == ent.Comp.SolutionName)
             UpdateVisuals(ent);
     }
 
     private void OnMapInit(Entity<StainableComponent> ent, ref MapInitEvent args)
     {
         if (_solution.TryGetSolution(ent.Owner, ent.Comp.SolutionName, out var sol))
-            sol.Value.Comp.Solution.CanReact = false;
+            _solution.SetCanReact(sol.Value, false);
     }
 
     private void OnSpilledOn(Entity<StainableComponent> ent, ref InventoryRelayedEvent<SpilledOnEvent> args)
@@ -199,6 +201,9 @@ public abstract class SharedStainSystem : EntitySystem
             drainComp.Solution is not null &&
             _solution.TryAddSolution(drainComp.Solution.Value, split))
         {
+            if (TryComp<ForensicsComponent>(args.Used, out var drainForensics))
+                drainForensics.DNAs.UnionWith(_forensics.GetSolutionsDNA(split));
+
             _popup.PopupPredicted(Loc.GetString("stain-verb-wring-drain-success"), args.User, args.User);
         }
         else if (_puddle.TrySpillAt(ent.Owner, split, out _)) // Wring onto floor
